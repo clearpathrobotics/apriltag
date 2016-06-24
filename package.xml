@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>apriltag</name>
+  <version>0.0.0</version>
+  <description>Apriltag library (2015-03-18)</description>
+
+  <maintainer email="ebolson@umich.edu">Edwin Olson</maintainer>
+  <maintainer email="efernandez@clearpath.ai">Enrique Fernandez</maintainer>
+  <author email="ebolson@umich.edu">Edwin Olson</author>
+
+  <license>BSD</license>
+
+  <url type="website">https://april.eecs.umich.edu/software/apriltag.html</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+</package>
