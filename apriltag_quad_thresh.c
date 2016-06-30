@@ -1034,8 +1034,8 @@ int fit_quad(apriltag_detector_t *td, image_u8_t *im, zarray_t *cluster, struct 
                 double W10 = -A10 / det, W11 = A00 / det;
                 double L1 = W10*B0 + W11*B1;
 
-                double x = lines[(i+1)&3][0] - L1*A10;
-                double y = lines[(i+1)&3][1] - L1*A11;
+                double __attribute__((__unused__)) x = lines[(i+1)&3][0] - L1*A10;
+                double __attribute__((__unused__)) y = lines[(i+1)&3][1] - L1*A11;
                 assert(fabs(x - quad->p[i][0]) < 0.001 &&
                        fabs(y - quad->p[i][1]) < 0.001);
             }

@@ -391,7 +391,7 @@ void zmaxheap_test()
 
             int32_t outv;
             float outfv;
-            int res = zmaxheap_remove_max(heap, &outv, &outfv);
+            int __attribute__((__unused__)) res = zmaxheap_remove_max(heap, &outv, &outfv);
             if (sz == 0) {
                 assert(res == 0);
             } else {

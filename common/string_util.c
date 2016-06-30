@@ -514,7 +514,7 @@ void string_feeder_require(string_feeder_t *sf, const char *str)
     size_t len = strlen(str);
 
     for (int i = 0; i < len; i++) {
-        char c = string_feeder_next(sf);
+        char __attribute__((__unused__)) c = string_feeder_next(sf);
         assert(c == str[i]);
     }
 }
