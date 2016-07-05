@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.1 (2016-07-05)
+------------------
 * Use __attribute_\_((__unused_\_)) for unused vars, used on asserts
 * Catkinize
 * Original code from apriltag-2015-03-18
