@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.2 (2016-07-07)
+------------------
 * Fix header install rules
 * Contributors: Enrique Fernandez
 
