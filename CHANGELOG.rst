@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.3 (2016-07-11)
+------------------
 * Install header on global include destination
 * Contributors: Enrique Fernandez
 
