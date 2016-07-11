@@ -2,6 +2,11 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Install header on global include destination
+* Contributors: Enrique Fernandez
+
 0.0.2 (2016-07-07)
 ------------------
 * Fix header install rules
