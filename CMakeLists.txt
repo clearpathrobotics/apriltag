@@ -61,7 +61,11 @@ install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}-common apriltag_demo
 # Note that we need to exclude the 'debian' folder (from bloom-release) to
 # avoid an infinite recursion in the installation process.
 # See https://cmake.org/cmake/help/v3.0/command/install.html
+# Note that we set the destination to ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+# instead of the common ${CATKIN_PACKAGE_INCLUDE_DESTINATION} (which is equal to
+# ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}) because we need to
+# install the headers on the global/top directory.
 install(DIRECTORY ./
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
   PATTERN "debian" EXCLUDE)
