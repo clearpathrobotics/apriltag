@@ -1204,6 +1204,9 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     assert(h < 32768);
 
     image_u8_t *threshim = image_u8_create(w, h);
+    // @todo in debug mode this fails!
+    // we need to check the values of both
+    // and run in Debug mode!
     assert(threshim->stride == s);
 
     // The idea is to find the maximum and minimum values in a
