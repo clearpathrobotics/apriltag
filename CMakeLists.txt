@@ -70,3 +70,9 @@ install(DIRECTORY ./
   DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
   PATTERN "debian" EXCLUDE)
+
+if (CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(quad_goodness_test test/quad_goodness_test.cpp)
+  target_link_libraries(quad_goodness_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+  set_target_properties(quad_goodness_test PROPERTIES COMPILE_FLAGS "-Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
+endif()
