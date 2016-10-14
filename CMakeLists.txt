@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(apriltag)
 
-set(CMAKE_C_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4 ${CMAKE_C_FLAGS}")
-
 # @todo this does NOT work, since it should set ${CMAKE_THREAD_LIBS_INIT}, but
 # it does NOT!
 #find_package(Threads REQUIRED)
@@ -35,6 +33,7 @@ add_library(${PROJECT_NAME}-common
   common/zhash.c
   common/zmaxheap.c)
 target_link_libraries(${PROJECT_NAME}-common pthread m)
+set_target_properties(${PROJECT_NAME}-common PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
 
 add_library(${PROJECT_NAME}
   apriltag.c
@@ -48,9 +47,11 @@ add_library(${PROJECT_NAME}
   tag36h11.c)
 target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}-common ${catkin_LIBRARIES})
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
 
 add_executable(apriltag_demo apriltag_demo.c)
 target_link_libraries(apriltag_demo ${PROJECT_NAME} ${catkin_LIBRARIES})
+set_target_properties(apriltag_demo PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
 
 install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}-common apriltag_demo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -69,3 +70,9 @@ install(DIRECTORY ./
   DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
   PATTERN "debian" EXCLUDE)
+
+if (CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(quad_goodness_test test/quad_goodness_test.cpp)
+  target_link_libraries(quad_goodness_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+  set_target_properties(quad_goodness_test PROPERTIES COMPILE_FLAGS "-Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
+endif()
