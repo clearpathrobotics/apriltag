@@ -2,6 +2,16 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Merge pull request `#1 <https://github.com/clearpathrobotics/apriltag/issues/1>`_ from clearpathrobotics/fix_crash_singular_homography
+  Fix crash when homography is singular
+* Add unit test for singular homography
+* Check if inverse homography Hinv is NULL
+  This happens when the homography H is singular.
+* Set special compile flags per target
+* Contributors: Enrique Fernandez, afakihcpr
+
 0.0.3 (2016-07-11)
 ------------------
 * Install header on global include destination
