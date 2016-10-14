@@ -414,6 +414,16 @@ double quad_goodness(apriltag_family_t *family, image_u8_t *im, struct quad *qua
     // outside portions are often intruded upon, so it could be advantageous to use
     // less than the "nominal" 1.0. (Less than 1.0 not well tested.)
 
+    matd_t *Hinv = quad->Hinv;
+//    matd_t *H = quad->H;
+
+    // return the lowest score if the homography matrix H is singular, ie. it's
+    // NOT invertible, in which case Hinv is NULL (as returned by matd_inverse)
+    if (!Hinv)
+    {
+        return -DBL_MAX;
+    }
+
     // XXX Tunable
     float white_border = 1;
 
@@ -447,9 +457,6 @@ double quad_goodness(apriltag_family_t *family, image_u8_t *im, struct quad *qua
 
     float wsz = bit_size*white_border;
     float bsz = bit_size*family->black_border;
-
-    matd_t *Hinv = quad->Hinv;
-//    matd_t *H = quad->H;
 
     // iterate over all the pixels in the tag. (Iterating in pixel space)
     for (int y = ymin; y <= ymax; y++) {
