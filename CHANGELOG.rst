@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.4 (2016-10-14)
+------------------
 * Merge pull request `#1 <https://github.com/clearpathrobotics/apriltag/issues/1>`_ from clearpathrobotics/fix_crash_singular_homography
   Fix crash when homography is singular
 * Add unit test for singular homography
