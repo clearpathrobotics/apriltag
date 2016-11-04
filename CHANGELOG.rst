@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.5 (2016-11-04)
+------------------
 * Updagre to 2016-10-21 version
   See https://april.eecs.umich.edu/media/apriltag/apriltag-2016-10-21.tgz
   (https://april.eecs.umich.edu/software/apriltag.html)
