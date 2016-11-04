@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -319,6 +322,7 @@ static void maxheapify(zmaxheap_t *heap, int parent)
         return maxheapify(heap, betterchild);
     }
 }
+
 #if 0 //won't compile if defined but not used
 // test the heap property
 static void validate(zmaxheap_t *heap)
@@ -348,7 +352,7 @@ void zmaxheap_iterator_finish(zmaxheap_iterator_t *it)
     heap->size = it->out;
 
     // restore heap property
-    for (int i = heap->size-1; i >= 0; i--)
+    for (int i = heap->size/2 - 1; i >= 0; i--)
         maxheapify(heap, i);
 }
 

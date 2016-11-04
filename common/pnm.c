@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -49,7 +52,7 @@ pnm_t *pnm_create_from_file(const char *path)
     int nparams = 0; // will be 3 when we're all done.
     int params[3];
 
-    while (nparams < 3) {
+    while (nparams < 3 && !(pnm->format == PNM_FORMAT_BINARY && nparams == 2)) {
         if (fgets(tmp, sizeof(tmp), f) == NULL)
             goto error;
 
@@ -61,7 +64,7 @@ pnm_t *pnm_create_from_file(const char *path)
 
         if (pnm->format == -1 && tmp[0]=='P') {
             pnm->format = tmp[1]-'0';
-            assert(pnm->format == PNM_FORMAT_GRAY || pnm->format == PNM_FORMAT_RGB);
+            assert(pnm->format == PNM_FORMAT_GRAY || pnm->format == PNM_FORMAT_RGB || pnm->format == PNM_FORMAT_BINARY);
             p = &tmp[2];
         }
 
@@ -87,9 +90,21 @@ pnm_t *pnm_create_from_file(const char *path)
 
     pnm->width = params[0];
     pnm->height = params[1];
-    assert(params[2] == 255);
+    if (pnm->format == PNM_FORMAT_GRAY || pnm->format == PNM_FORMAT_RGB)
+        assert(params[2] == 255);
 
     switch (pnm->format) {
+        case PNM_FORMAT_BINARY: {
+            pnm->buflen = pnm->height * ((pnm->width + 7)  / 8);
+            pnm->buf = malloc(pnm->buflen);
+            size_t len = fread(pnm->buf, 1, pnm->buflen, f);
+            if (len != pnm->buflen)
+                goto error;
+
+            fclose(f);
+            return pnm;
+        }
+
         case PNM_FORMAT_GRAY: {
             pnm->buflen = pnm->width * pnm->height;
             pnm->buf = malloc(pnm->buflen);

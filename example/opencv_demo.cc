@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -29,26 +32,21 @@ of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <ctype.h>
-#include <unistd.h>
+#include <iostream>
+
+#include "opencv2/opencv.hpp"
 
 #include "apriltag.h"
-#include "image_u8.h"
 #include "tag36h11.h"
 #include "tag36h10.h"
 #include "tag36artoolkit.h"
 #include "tag25h9.h"
 #include "tag25h7.h"
+#include "common/getopt.h"
 
-#include "zarray.h"
-#include "getopt.h"
+using namespace std;
+using namespace cv;
 
-// Invoke:
-//
-// tagtest [options] input.pnm
 
 int main(int argc, char *argv[])
 {
@@ -59,7 +57,6 @@ int main(int argc, char *argv[])
     getopt_add_bool(getopt, 'q', "quiet", 0, "Reduce output");
     getopt_add_string(getopt, 'f', "family", "tag36h11", "Tag family to use");
     getopt_add_int(getopt, '\0', "border", "1", "Set tag family border size");
-    getopt_add_int(getopt, 'i', "iters", "1", "Repeat processing on input set this many times");
     getopt_add_int(getopt, 't', "threads", "4", "Use this many CPU threads");
     getopt_add_double(getopt, 'x', "decimate", "1.0", "Decimate input image by this factor");
     getopt_add_double(getopt, 'b', "blur", "0.0", "Apply low-pass blur to input");
@@ -67,14 +64,21 @@ int main(int argc, char *argv[])
     getopt_add_bool(getopt, '1', "refine-decode", 0, "Spend more time trying to decode tags");
     getopt_add_bool(getopt, '2', "refine-pose", 0, "Spend more time trying to precisely localize tags");
 
-    if (!getopt_parse(getopt, argc, argv, 1) || getopt_get_bool(getopt, "help")) {
-        printf("Usage: %s [options] <input files>\n", argv[0]);
+    if (!getopt_parse(getopt, argc, argv, 1) ||
+            getopt_get_bool(getopt, "help")) {
+        printf("Usage: %s [options]\n", argv[0]);
         getopt_do_usage(getopt);
         exit(0);
     }
 
-    const zarray_t *inputs = getopt_get_extra_args(getopt);
+    // Initialize camera
+    VideoCapture cap(0);
+    if (!cap.isOpened()) {
+        cerr << "Couldn't open video capture device" << endl;
+        return -1;
+    }
 
+    // Initialize tag detector with options
     apriltag_family_t *tf = NULL;
     const char *famname = getopt_get_string(getopt, "family");
     if (!strcmp(famname, "tag36h11"))
@@ -91,7 +95,6 @@ int main(int argc, char *argv[])
         printf("Unrecognized tag family name. Use e.g. \"tag36h11\".\n");
         exit(-1);
     }
-
     tf->black_border = getopt_get_int(getopt, "border");
 
     apriltag_detector_t *td = apriltag_detector_create();
@@ -104,72 +107,69 @@ int main(int argc, char *argv[])
     td->refine_decode = getopt_get_bool(getopt, "refine-decode");
     td->refine_pose = getopt_get_bool(getopt, "refine-pose");
 
-    int quiet = getopt_get_bool(getopt, "quiet");
+    Mat frame, gray;
+    while (true) {
+        cap >> frame;
+        cvtColor(frame, gray, COLOR_BGR2GRAY);
 
-    int maxiters = getopt_get_int(getopt, "iters");
+        // Make an image_u8_t header for the Mat data
+        image_u8_t im = { .width = gray.cols,
+            .height = gray.rows,
+            .stride = gray.cols,
+            .buf = gray.data
+        };
 
-    const int hamm_hist_max = 10;
+        zarray_t *detections = apriltag_detector_detect(td, &im);
+        cout << zarray_size(detections) << " tags detected" << endl;
 
-    for (int iter = 0; iter < maxiters; iter++) {
+        // Draw detection outlines
+        for (int i = 0; i < zarray_size(detections); i++) {
+            apriltag_detection_t *det;
+            zarray_get(detections, i, &det);
+            line(frame, Point(det->p[0][0], det->p[0][1]),
+                     Point(det->p[1][0], det->p[1][1]),
+                     Scalar(0, 0xff, 0), 2);
+            line(frame, Point(det->p[0][0], det->p[0][1]),
+                     Point(det->p[3][0], det->p[3][1]),
+                     Scalar(0, 0, 0xff), 2);
+            line(frame, Point(det->p[1][0], det->p[1][1]),
+                     Point(det->p[2][0], det->p[2][1]),
+                     Scalar(0xff, 0, 0), 2);
+            line(frame, Point(det->p[2][0], det->p[2][1]),
+                     Point(det->p[3][0], det->p[3][1]),
+                     Scalar(0xff, 0, 0), 2);
 
-        if (maxiters > 1)
-            printf("iter %d / %d\n", iter + 1, maxiters);
-
-        for (int input = 0; input < zarray_size(inputs); input++) {
-
-            int hamm_hist[hamm_hist_max];
-            memset(hamm_hist, 0, sizeof(hamm_hist));
-
-            char *path;
-            zarray_get(inputs, input, &path);
-            if (!quiet)
-                printf("loading %s\n", path);
-
-            image_u8_t *im = image_u8_create_from_pnm(path);
-            if (im == NULL) {
-                printf("couldn't find %s\n", path);
-                continue;
-            }
-
-            zarray_t *detections = apriltag_detector_detect(td, im);
-
-            for (int i = 0; i < zarray_size(detections); i++) {
-                apriltag_detection_t *det;
-                zarray_get(detections, i, &det);
-
-                if (!quiet)
-                    printf("detection %3d: id (%2dx%2d)-%-4d, hamming %d, goodness %8.3f, margin %8.3f\n",
-                           i, det->family->d*det->family->d, det->family->h, det->id, det->hamming, det->goodness, det->decision_margin);
-
-                hamm_hist[det->hamming]++;
-            }
-
-            apriltag_detections_destroy(detections);
-
-            if (!quiet) {
-                timeprofile_display(td->tp);
-                printf("nedges: %d, nsegments: %d, nquads: %d\n", td->nedges, td->nsegments, td->nquads);
-            }
-
-            if (!quiet)
-                printf("Hamming histogram: ");
-
-            for (int i = 0; i < hamm_hist_max; i++)
-                printf("%5d", hamm_hist[i]);
-
-            if (quiet) {
-                printf("%12.3f", timeprofile_total_utime(td->tp) / 1.0E3);
-            }
-
-            printf("\n");
-
-            image_u8_destroy(im);
+            stringstream ss;
+            ss << det->id;
+            String text = ss.str();
+            int fontface = FONT_HERSHEY_SCRIPT_SIMPLEX;
+            double fontscale = 1.0;
+            int baseline;
+            Size textsize = getTextSize(text, fontface, fontscale, 2,
+                                            &baseline);
+            putText(frame, text, Point(det->c[0]-textsize.width/2,
+                                       det->c[1]+textsize.height/2),
+                    fontface, fontscale, Scalar(0xff, 0x99, 0), 2);
         }
+        zarray_destroy(detections);
+
+        imshow("Tag Detections", frame);
+        if (waitKey(30) >= 0)
+            break;
     }
 
-    // don't deallocate contents of inputs; those are the argv
     apriltag_detector_destroy(td);
+    if (!strcmp(famname, "tag36h11"))
+        tag36h11_destroy(tf);
+    else if (!strcmp(famname, "tag36h10"))
+        tag36h10_destroy(tf);
+    else if (!strcmp(famname, "tag36artoolkit"))
+        tag36artoolkit_destroy(tf);
+    else if (!strcmp(famname, "tag25h9"))
+        tag25h9_destroy(tf);
+    else if (!strcmp(famname, "tag25h7"))
+        tag25h7_destroy(tf);
+    getopt_destroy(getopt);
 
-    tag36h11_destroy(tf);
     return 0;
 }

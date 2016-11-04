@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -38,6 +41,7 @@ either expressed or implied, of the FreeBSD Project.
 extern "C" {
 #endif
 
+#define PNM_FORMAT_BINARY 4
 #define PNM_FORMAT_GRAY 5
 #define PNM_FORMAT_RGB  6
 

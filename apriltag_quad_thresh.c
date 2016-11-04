@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -38,12 +41,13 @@ either expressed or implied, of the FreeBSD Project.
 #include <stdio.h>
 
 #include "apriltag.h"
-#include "zarray.h"
-#include "zhash.h"
-#include "unionfind.h"
-#include "timeprofile.h"
-#include "zmaxheap.h"
-#include "postscript_utils.h"
+#include "common/image_u8x3.h"
+#include "common/zarray.h"
+#include "common/zhash.h"
+#include "common/unionfind.h"
+#include "common/timeprofile.h"
+#include "common/zmaxheap.h"
+#include "common/postscript_utils.h"
 
 /*
 static inline uint32_t u64hash_1(uint64_t x) {
@@ -54,6 +58,7 @@ static inline uint32_t u64hash_1(uint64_t x) {
 }
 */
 
+/*
 static inline double terrible_atan2_quadrant0(double y, double x)
 {
     if (x > y)
@@ -77,6 +82,7 @@ static inline double terrible_atan2(double y, double x)
             return K*(-4 + terrible_atan2_quadrant0(-y, -x)); // quadrant 3
     }
 }
+*/
 
 static inline uint32_t u64hash_2(uint64_t x) {
     return (2654435761 * x) >> 32;
@@ -111,7 +117,7 @@ struct unionfind_task
     int y0, y1;
     int w, h, s;
     unionfind_t *uf;
-    image_u8_t *edgeim;
+    image_u8_t *im;
 };
 
 struct quad_task
@@ -447,7 +453,8 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
     // sz/8. We make it somewhat smaller to account for tags at high
     // aspects.
 
-    // XXX Tunable
+    // XXX Tunable. Maybe make a multiple of JPEG block size to increase robustness
+    // to JPEG compression artifacts?
     int ksz = imin(20, sz / 12);
 
     // can't fit a quad if there are too few points.
@@ -1129,14 +1136,16 @@ int fit_quad(apriltag_detector_t *td, image_u8_t *im, zarray_t *cluster, struct 
     return res;
 }
 
-#define DO_UNIONFIND(dx, dy) if (edgeim->buf[y*s + dy*s + x + dx] == v) unionfind_connect(uf, y*w + x, y*w + dy*w + x + dx);
-static inline void do_unionfind_line(unionfind_t *uf, image_u8_t *edgeim, int h, int w, int s, int y)
+#define DO_UNIONFIND(dx, dy) if (im->buf[y*s + dy*s + x + dx] == v) unionfind_connect(uf, y*w + x, y*w + dy*w + x + dx);
+
+static void do_unionfind_line(unionfind_t *uf, image_u8_t *im, int h, int w, int s, int y)
 {
-    assert(y+1 < edgeim->height);
+    assert(y+1 < im->height);
 
     for (int x = 1; x < w - 1; x++) {
-        uint8_t v = edgeim->buf[y*s + x];
-        if (v==0)
+        uint8_t v = im->buf[y*s + x];
+
+        if (v == 127)
             continue;
 
         // (dx,dy) pairs for 8 connectivity:
@@ -1144,9 +1153,11 @@ static inline void do_unionfind_line(unionfind_t *uf, image_u8_t *edgeim, int h,
         // (-1, 1)    (0, 1)    (1, 1)
         //
         DO_UNIONFIND(1, 0);
-        DO_UNIONFIND(-1, 1);
         DO_UNIONFIND(0, 1);
-        DO_UNIONFIND(1, 1);
+        if (v == 255) {
+            DO_UNIONFIND(-1, 1);
+            DO_UNIONFIND(1, 1);
+        }
     }
 }
 #undef DO_UNIONFIND
@@ -1156,7 +1167,7 @@ static void do_unionfind_task(void *p)
     struct unionfind_task *task = (struct unionfind_task*) p;
 
     for (int y = task->y0; y < task->y1; y++) {
-        do_unionfind_line(task->uf, task->edgeim, task->h, task->w, task->s, y);
+        do_unionfind_line(task->uf, task->im, task->h, task->w, task->s, y);
     }
 }
 
@@ -1181,7 +1192,7 @@ static void do_quad_task(void *p)
         // tag. it cannot be bigger than the whole screen. (Reject
         // large connected blobs that will be prohibitively slow to
         // fit quads to.)
-        if (zarray_size(cluster) > 4*(w+h)) {
+        if (zarray_size(cluster) > 3*(2*w+2*h)) {
             continue;
         }
 
@@ -1199,18 +1210,20 @@ static void do_quad_task(void *p)
 
 image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
 {
-    int w = im->width, h = im->height, s = im->stride;
+    int w = im->width, h = im->height, is = im->stride;
     assert(w < 32768);
     assert(h < 32768);
 
-    // Use 's' as alignment parameter to guarantee equal stride.
-    image_u8_t *threshim = image_u8_create_alignment(w, h, s);
-    assert(threshim->stride == s);
+    image_u8_t *threshim = image_u8_create(w, h);
+    int ts = threshim->stride;
 
     // The idea is to find the maximum and minimum values in a
     // window around each pixel. If it's a contrast-free region
     // (max-min is small), don't try to binarize. Otherwise,
     // threshold according to (max+min)/2.
+    //
+    // Mark low-contrast regions with value 127 so that we can skip
+    // future work on these areas too.
 
     // however, computing max/min around every pixel is needlessly
     // expensive. We compute max/min for tiles. To avoid artifacts
@@ -1219,17 +1232,20 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     // large change in max/min value), the max/min values used for
     // any pixel are computed from all 3x3 surrounding tiles. Thus,
     // the max/min sampling area for nearby pixels overlap by at least
-    // on tile.
+    // one tile.
     //
     // The important thing is that the windows be large enough to
     // capture edge transitions; the tag does not need to fit into
     // a tile.
 
-    // XXX Tunable
-    int tilesz = 4;
+    // XXX Tunable. Generally, small tile sizes--- so long as they're
+    // large enough to span a single tag edge--- seem to be a winner.
+    const int tilesz = 4;
 
-    int tw = w/tilesz + 1;
-    int th = h/tilesz + 1;
+    // the last (possibly partial) tiles along each row and column will
+    // just use the min/max value from the last full tile.
+    int tw = w / tilesz;
+    int th = h / tilesz;
 
     uint8_t *im_max = calloc(tw*th, sizeof(uint8_t));
     uint8_t *im_min = calloc(tw*th, sizeof(uint8_t));
@@ -1240,14 +1256,10 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
             uint8_t max = 0, min = 255;
 
             for (int dy = 0; dy < tilesz; dy++) {
-                if (ty*tilesz+dy >= h)
-                    continue;
 
                 for (int dx = 0; dx < tilesz; dx++) {
-                    if (tx*tilesz+dx >= w)
-                        continue;
 
-                    uint8_t v = im->buf[(ty*tilesz+dy)*s + tx*tilesz + dx];
+                    uint8_t v = im->buf[(ty*tilesz+dy)*is + tx*tilesz + dx];
                     if (v < min)
                         min = v;
                     if (v > max)
@@ -1263,29 +1275,61 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     // second, apply 3x3 max/min convolution to "blur" these values
     // over larger areas. This reduces artifacts due to abrupt changes
     // in the threshold value.
+    if (1) {
+        uint8_t *im_max_tmp = calloc(tw*th, sizeof(uint8_t));
+        uint8_t *im_min_tmp = calloc(tw*th, sizeof(uint8_t));
+
+        for (int ty = 0; ty < th; ty++) {
+            for (int tx = 0; tx < tw; tx++) {
+                uint8_t max = 0, min = 255;
+
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (ty+dy < 0 || ty+dy >= th)
+                        continue;
+                    for (int dx = -1; dx <= 1; dx++) {
+                        if (tx+dx < 0 || tx+dx >= tw)
+                            continue;
+
+                        uint8_t m = im_max[(ty+dy)*tw+tx+dx];
+                        if (m > max)
+                            max = m;
+                        m = im_min[(ty+dy)*tw+tx+dx];
+                        if (m < min)
+                            min = m;
+                    }
+                }
+
+                im_max_tmp[ty*tw + tx] = max;
+                im_min_tmp[ty*tw + tx] = min;
+            }
+        }
+        free(im_max);
+        free(im_min);
+        im_max = im_max_tmp;
+        im_min = im_min_tmp;
+    }
+
     for (int ty = 0; ty < th; ty++) {
         for (int tx = 0; tx < tw; tx++) {
-            uint8_t max = 0, min = 255;
 
-            for (int dy = -1; dy <= 1; dy++) {
-                if (ty+dy < 0 || ty+dy >= th)
-                    continue;
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (tx+dx < 0 || tx+dx >= tw)
-                        continue;
+            int min = im_min[ty*tw + tx];
+            int max = im_max[ty*tw + tx];
 
-                    uint8_t m = im_max[(ty+dy)*tw+tx+dx];
-                    if (m > max)
-                        max = m;
-                    m = im_min[(ty+dy)*tw+tx+dx];
-                    if (m < min)
-                        min = m;
+            // low contrast region? (no edges)
+            if (max - min < td->qtp.min_white_black_diff) {
+                for (int dy = 0; dy < tilesz; dy++) {
+                    int y = ty*tilesz + dy;
+
+                    for (int dx = 0; dx < tilesz; dx++) {
+                        int x = tx*tilesz + dx;
+
+                        threshim->buf[y*ts+x] = 127;
+                    }
                 }
+                continue;
             }
 
-            // XXX Tunable
-            if (max - min < td->qtp.min_white_black_diff)
-                continue;
+            // otherwise, actually threshold this tile.
 
             // argument for biasing towards dark; specular highlights
             // can be substantially brighter than white tag parts
@@ -1293,17 +1337,53 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
 
             for (int dy = 0; dy < tilesz; dy++) {
                 int y = ty*tilesz + dy;
-                if (y >= h)
-                    continue;
 
                 for (int dx = 0; dx < tilesz; dx++) {
                     int x = tx*tilesz + dx;
-                    if (x >= w)
-                        continue;
 
-                    uint8_t v = im->buf[y*s+x];
-                    threshim->buf[y*s+x] = v > thresh;
+                    uint8_t v = im->buf[y*is+x];
+                    if (v > thresh)
+                        threshim->buf[y*ts+x] = 255;
+                    else
+                        threshim->buf[y*ts+x] = 0;
                 }
+            }
+        }
+    }
+
+    // we skipped over the non-full-sized tiles above. Fix those now.
+    if (1) {
+        for (int y = 0; y < h; y++) {
+
+            // what is the first x coordinate we need to process in this row?
+
+            int x0;
+
+            if (y >= th*tilesz) {
+                x0 = 0; // we're at the bottom; do the whole row.
+            } else {
+                x0 = tw*tilesz; // we only need to do the right most part.
+            }
+
+            // compute tile coordinates and clamp.
+            int ty = y / tilesz;
+            if (ty >= th)
+                ty = th - 1;
+
+            for (int x = x0; x < w; x++) {
+                int tx = x / tilesz;
+                if (tx >= tw)
+                    tx = tw - 1;
+
+                int max = im_max[ty*tw + tx];
+                int min = im_min[ty*tw + tx];
+                int thresh = min + (max - min) / 2;
+
+                uint8_t v = im->buf[y*is+x];
+                if (v > thresh)
+                    threshim->buf[y*ts+x] = 255;
+                else
+                    threshim->buf[y*ts+x] = 0;
             }
         }
     }
@@ -1321,10 +1401,10 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
 // of pixels.
 image_u8_t *threshold_bayer(apriltag_detector_t *td, image_u8_t *im)
 {
-    int w = im->width, h = im->height, s = im->stride;
+    int w = im->width, h = im->height, is = im->stride;
 
     image_u8_t *threshim = image_u8_create(w, h);
-    assert(threshim->stride == s);
+    int ts = threshim->stride;
 
     int tilesz = 32;
     assert((tilesz & 1) == 0); // must be multiple of 2
@@ -1355,7 +1435,7 @@ image_u8_t *threshold_bayer(apriltag_detector_t *td, image_u8_t *im)
                     // which bayer element is this pixel?
                     int idx = (2*(dy&1) + (dx&1));
 
-                    uint8_t v = im->buf[(ty*tilesz+dy)*s + tx*tilesz + dx];
+                    uint8_t v = im->buf[(ty*tilesz+dy)*is + tx*tilesz + dx];
                     if (v < min[idx])
                         min[idx] = v;
                     if (v > max[idx])
@@ -1398,7 +1478,7 @@ image_u8_t *threshold_bayer(apriltag_detector_t *td, image_u8_t *im)
 //            if (max - min < 30)
 //                continue;
 
-            // argument for biasing towards dark; specular highlights
+            // argument for biasing towards dark: specular highlights
             // can be substantially brighter than white tag parts
             uint8_t thresh[4];
             for (int i = 0; i < 4; i++) {
@@ -1418,8 +1498,8 @@ image_u8_t *threshold_bayer(apriltag_detector_t *td, image_u8_t *im)
                     // which bayer element is this pixel?
                     int idx = (2*(y&1) + (x&1));
 
-                    uint8_t v = im->buf[y*s+x];
-                    threshim->buf[y*s+x] = v > thresh[idx];
+                    uint8_t v = im->buf[y*is+x];
+                    threshim->buf[y*ts+x] = v > thresh[idx];
                 }
             }
         }
@@ -1440,114 +1520,13 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
     ////////////////////////////////////////////////////////
     // step 1. threshold the image, creating the edge image.
 
-    int w = im->width, h = im->height, s = im->stride;
+    int w = im->width, h = im->height;
 
     image_u8_t *threshim = threshold(td, im);
-    assert(threshim->stride == s);
+    int ts = threshim->stride;
 
-    image_u8_t *edgeim = image_u8_create(w, h);
-
-    if (1) {
-        image_u8_t *sumim = image_u8_create(w, h);
-
-        // apply a horizontal sum kernel of width 3
-        for (int y = 0; y < h; y++) {
-            for (int x = 1; x+1 < w; x++) {
-
-                sumim->buf[y*s + x] =
-                    threshim->buf[y*s + x - 1] +
-                    threshim->buf[y*s + x + 0] +
-                    threshim->buf[y*s + x + 1];
-            }
-        }
-        timeprofile_stamp(td->tp, "sumim");
-
-        // deglitch
-        if (td->qtp.deglitch) {
-            for (int y = 1; y+1 < h; y++) {
-                for (int x = 1; x+1 < w; x++) {
-                    // edge: black pixel next to white pixel
-                    if (threshim->buf[y*s + x] == 0 &&
-                        sumim->buf[y*s + x - s] + sumim->buf[y*s + x] + sumim->buf[y*s + x + s] == 8) {
-                        threshim->buf[y*s + x] = 1;
-                        sumim->buf[y*s + x - 1]++;
-                        sumim->buf[y*s + x + 0]++;
-                        sumim->buf[y*s + x + 1]++;
-                    }
-
-                    if (threshim->buf[y*s + x] == 1 &&
-                        sumim->buf[y*s + x - s] + sumim->buf[y*s + x] + sumim->buf[y*s + x + s] == 1) {
-                        threshim->buf[y*s + x] = 0;
-                        sumim->buf[y*s + x - 1]--;
-                        sumim->buf[y*s + x + 0]--;
-                        sumim->buf[y*s + x + 1]--;
-                   }
-                }
-            }
-
-            timeprofile_stamp(td->tp, "deglitch");
-        }
-
-        // apply a vertical sum kernel of width 3; check if any
-        // over-threshold pixels are adjacent to an under-threshold
-        // pixel.
-        //
-        // There are two types of edges: white pixels neighboring a
-        // black pixel, and black pixels neighboring a white pixel. We
-        // label these separately.  (Values 0xc0 and 0x3f are picked
-        // such that they add to 255 (see below) and so that they can be
-        // viewed as pixel intensities for visualization purposes.)
-        //
-        // symmetry of detection. We don't want to use JUST "black
-        // near white" (or JUST "white near black"), because that
-        // biases the detection towards one side of the edge. This
-        // measurably reduces detection performance.
-        //
-        // On large tags, we could treat "neighbor" pixels the same
-        // way. But on very small tags, there may be other edges very
-        // near the tag edge. Since each of these edges is effectively
-        // two pixels thick (the white pixel near the black pixel, and
-        // the black pixel near the white pixel), it becomes likely
-        // that these two nearby edges will actually touch.
-        //
-        // A partial solution to this problem is to define edges to be
-        // adjacent white-near-black and black-near-white pixels.
-        //
-
-        for (int y = 1; y+1 < h; y++) {
-            for (int x = 1; x+1 < w; x++) {
-                if (threshim->buf[y*s + x] == 0) {
-
-                    // edge: black pixel next to white pixel
-                    if (sumim->buf[y*s + x - s] + sumim->buf[y*s + x] + sumim->buf[y*s + x + s] > 0)
-                        edgeim->buf[y*s + x] = 0xc0;
-                } else {
-                    // edge: white pixel next to black pixel when both
-                    // edge types are on, we get less bias towards one
-                    // side of the edge.
-                    if (sumim->buf[y*s + x - s] + sumim->buf[y*s + x] + sumim->buf[y*s + x + s] < 9)
-                        edgeim->buf[y*s + x] = 0x3f;
-                }
-            }
-        }
-
-        if (td->debug) {
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    threshim->buf[y*s + x] *= 255;
-                }
-            }
-
-            image_u8_write_pnm(threshim, "debug_threshold.pnm");
-            image_u8_write_pnm(edgeim, "debug_edge.pnm");
-//            image_u8_destroy(edgeim2);
-        }
-
-        image_u8_destroy(threshim);
-        image_u8_destroy(sumim);
-    }
-
-    timeprofile_stamp(td->tp, "edges");
+    if (td->debug)
+        image_u8_write_pnm(threshim, "debug_threshold.pnm");
 
     ////////////////////////////////////////////////////////
     // step 2. find connected components.
@@ -1556,7 +1535,7 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
 
     if (td->nthreads <= 1) {
         for (int y = 0; y < h - 1; y++) {
-            do_unionfind_line(uf, edgeim, h, w, s, y);
+            do_unionfind_line(uf, threshim, h, w, ts, y);
         }
     } else {
         int sz = h - 1;
@@ -1575,9 +1554,9 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
             tasks[ntasks].y1 = imin(sz, i + chunksize - 1);
             tasks[ntasks].h = h;
             tasks[ntasks].w = w;
-            tasks[ntasks].s = s;
+            tasks[ntasks].s = ts;
             tasks[ntasks].uf = uf;
-            tasks[ntasks].edgeim = edgeim;
+            tasks[ntasks].im = threshim;
 
             workerpool_add_task(td->wp, do_unionfind_task, &tasks[ntasks]);
             ntasks++;
@@ -1587,7 +1566,7 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
 
         // XXX stitch together the different chunks.
         for (int i = 0; i + 1 < ntasks; i++) {
-            do_unionfind_line(uf, edgeim, h, w, s, tasks[i].y1);
+            do_unionfind_line(uf, threshim, h, w, ts, tasks[i].y1);
         }
     }
 
@@ -1598,19 +1577,16 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
     for (int y = 1; y < h-1; y++) {
         for (int x = 1; x < w-1; x++) {
 
-            uint8_t v0 = edgeim->buf[y*s + x];
-            if (v0 == 0)
+            uint8_t v0 = threshim->buf[y*ts + x];
+            if (v0 == 127)
                 continue;
 
+            // XXX don't query this until we know we need it?
             uint64_t rep0 = unionfind_get_representative(uf, y*w + x);
-
-            // 8 connectivity. (4 neighbors to check).
-//            for (int dy = 0; dy <= 1; dy++) {
-//                for (int dx = 1-2*dy; dx <= 1; dx++) {
 
 #define DO_CONN(dx, dy)                                                 \
             if (1) {                                                    \
-                uint8_t v1 = edgeim->buf[y*s + dy*s + x + dx];          \
+                uint8_t v1 = threshim->buf[y*ts + dy*ts + x + dx];      \
                 if (v0 + v1 == 255) {                                   \
                     uint64_t rep1 = unionfind_get_representative(uf, y*w + dy*w + x + dx); \
                     uint64_t clusterid;                                 \
@@ -1623,68 +1599,30 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
                         cluster = zarray_create(sizeof(struct pt));     \
                         uint64_zarray_hash_put(clustermap, &clusterid, &cluster, NULL, NULL); \
                     }                                                   \
-                    struct pt p = { .x = 2*x + 2*dx, .y = 2*y + 2*dy }; \
+                    struct pt p = { .x = 2*x + dx, .y = 2*y + dy };     \
                     zarray_add(cluster, &p);                            \
-                    struct pt p2 = { .x = 2*x, .y = 2*y };              \
-                    zarray_add(cluster, &p2);                            \
                 }                                                       \
             }
+
 
             // do 4 connectivity
             DO_CONN(1, 0);
             DO_CONN(0, 1);
-#undef DO_CONN
 
-/*
-            // 4 connectivity. (2 neighbors to check)
-            for (int n = 1; n <= 2; n++) {
-                int dy = n & 1;
-                int dx = n >> 1;
-
-                uint8_t v1 = edgeim->buf[(y+dy)*s + x + dx];
-                if (v0 + v1 != 255)
-                    continue;
-                uint64_t rep1 = unionfind_get_representative(uf, (y+dy)*w + x+dx);
-
-// No. The segmented regions can be smaller than min_cluster_pixels,
-// with the region between them still bigger.
-//
-//                if (unionfind_get_set_size(uf, rep1) < td->qtp.min_cluster_pixels)
-//                    continue;
-
-                uint64_t clusterid;
-                if (rep0 < rep1)
-                    clusterid = (rep1 << 32) + rep0;
-                else
-                    clusterid = (rep0 << 32) + rep1;
-
-                zarray_t *cluster = NULL;
-
-                if (!uint64_zarray_hash_get(clustermap, &clusterid, &cluster)) {
-                    cluster = zarray_create(sizeof(struct pt));
-                    if (uint64_zarray_hash_put(clustermap, &clusterid, &cluster, NULL, NULL))
-                        assert(0);
-                }
-
-                // Add the point half-way between the two pixels. We
-                // use a fixed-point representation with a scale
-                // factor of 2. (This scale factor is undone when
-                // computing quads.)
-                if (1) {
-                    struct pt p = { .x = 2*x + dx, .y = 2*y + dy };
-                    zarray_add(cluster, &p);
-                }
-            }
-*/
+            // do 8 connectivity
+            DO_CONN(-1, 1);
+            DO_CONN(1, 1);
         }
     }
+#undef DO_CONN
+
+    image_u8_destroy(threshim);
 
     // make segmentation image.
     if (td->debug) {
-        image_u8_t *d = image_u8_create(w, h);
-        assert(d->stride == s);
+        image_u8x3_t *d = image_u8x3_create(w, h);
 
-        uint8_t *colors = (uint8_t*) calloc(w*h, 1);
+        uint32_t *colors = (uint32_t*) calloc(w*h, sizeof(*colors));
 
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -1693,24 +1631,29 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
                 if (unionfind_get_set_size(uf, v) < td->qtp.min_cluster_pixels)
                     continue;
 
-                uint8_t color = colors[v];
+                uint32_t color = colors[v];
+                uint8_t r = color >> 16,
+                    g = color >> 8,
+                    b = color;
 
                 if (color == 0) {
-                    const int bias = 20;
-                    color = bias + (random() % (255-bias));
-                    colors[v] = color;
+                    const int bias = 50;
+                    r = bias + (random() % (200-bias));
+                    g = bias + (random() % (200-bias));
+                    b = bias + (random() % (200-bias));
+                    colors[v] = (r << 16) | (g << 8) | b;
                 }
 
-                float mix = 0.7;
-                mix = 1.0;
-                d->buf[y*d->stride + x] = mix*color + (1-mix)*im->buf[y*im->stride + x];
+                d->buf[y*d->stride + 3*x + 0] = r;
+                d->buf[y*d->stride + 3*x + 1] = g;
+                d->buf[y*d->stride + 3*x + 2] = b;
             }
         }
 
         free(colors);
 
-        image_u8_write_pnm(d, "debug_segmentation.pnm");
-        image_u8_destroy(d);
+        image_u8x3_write_pnm(d, "debug_segmentation.pnm");
+        image_u8x3_destroy(d);
     }
 
     timeprofile_stamp(td->tp, "make clusters");
@@ -1825,7 +1768,6 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
 
     zarray_destroy(clusters);
 
-    image_u8_destroy(edgeim);
 
     return quads;
 }

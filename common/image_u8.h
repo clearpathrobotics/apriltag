@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -41,10 +44,11 @@ extern "C" {
 typedef struct image_u8 image_u8_t;
 struct image_u8
 {
-    const int width, height;
-    const int stride;
+    const int32_t width;
+    const int32_t height;
+    const int32_t stride;
 
-    uint8_t *const buf; // const pointer, not buf
+    uint8_t *buf; // const pointer, not buf
 };
 
 typedef struct image_u8_lut image_u8_lut_t;
@@ -81,6 +85,7 @@ void image_u8_draw_circle(image_u8_t *im, float x0, float y0, float r, int v);
 
 void image_u8_clear(image_u8_t *im);
 void image_u8_darken(image_u8_t *im);
+void image_u8_convolve_2D(image_u8_t *im, const uint8_t *k, int ksz);
 void image_u8_gaussian_blur(image_u8_t *im, double sigma, int k);
 
 // 1.5, 2, 3, 4, ... supported

@@ -7,6 +7,8 @@ project(apriltag)
 
 find_package(catkin REQUIRED)
 
+find_package(OpenCV REQUIRED)
+
 catkin_package(
   INCLUDE_DIRS . common
   LIBRARIES ${PROJECT_NAME} ${PROJECT_NAME}-common)
@@ -14,14 +16,16 @@ catkin_package(
 include_directories(
   .
   common
-  ${catkin_INCLUDE_DIRS})
+  ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS})
 
 add_library(${PROJECT_NAME}-common
+  common/g2d.c
   common/getopt.c
   common/homography.c
   common/image_f32.c
-  common/image_u32.c
   common/image_u8.c
+  common/image_u8x3.c
   common/matd.c
   common/pnm.c
   common/string_util.c
@@ -38,7 +42,6 @@ set_target_properties(${PROJECT_NAME}-common PROPERTIES COMPILE_FLAGS "-std=gnu9
 add_library(${PROJECT_NAME}
   apriltag.c
   apriltag_quad_thresh.c
-  g2d.c
   tag16h5.c
   tag25h9.c
   tag25h7.c
@@ -49,11 +52,15 @@ target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}-common ${catkin_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
 
-add_executable(apriltag_demo apriltag_demo.c)
+add_executable(apriltag_demo example/apriltag_demo.c)
 target_link_libraries(apriltag_demo ${PROJECT_NAME} ${catkin_LIBRARIES})
 set_target_properties(apriltag_demo PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
 
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}-common apriltag_demo
+add_executable(opencv_demo example/opencv_demo.cc)
+target_link_libraries(opencv_demo ${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+set_target_properties(opencv_demo PROPERTIES COMPILE_FLAGS "-Wall -pthread -O4")
+
+install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}-common apriltag_demo opencv_demo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

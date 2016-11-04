@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -176,6 +179,9 @@ matd_t *homography_compute(zarray_t *correspondences, int flags)
 
     matd_t *H = matd_create(3,3);
 
+    /* printf("\n"); */
+    /* matd_print(A, "%15g"); */
+
     if (flags & HOMOGRAPHY_COMPUTE_FLAG_INVERSE) {
         // compute singular vector by (carefully) inverting the rank-deficient matrix.
 
@@ -225,9 +231,16 @@ matd_t *homography_compute(zarray_t *correspondences, int flags)
         // compute singular vector using SVD. A bit slower, but more accurate.
         matd_svd_t svd = matd_svd_flags(A, MATD_SVD_NO_WARNINGS);
 
+        /* printf("\nU:\n"); */
+        /* matd_print(svd.U, "%15g"); */
+        /* printf("\nS:\n"); */
+        /* matd_print(svd.S, "%15g"); */
+        /* printf("\nV:\n"); */
+        /* matd_print(svd.V, "%15g"); */
+        /* printf("\n\n\n"); */
+
         for (int i = 0; i < 3; i++)
             for (int j = 0; j < 3; j++)
-                // MATD_EL(H, i, j) = MATD_EL(Ainv, 3*i+j, 0)/ scale;
                 MATD_EL(H, i, j) = MATD_EL(svd.U, 3*i+j, 8);
 
         matd_destroy(svd.U);
@@ -260,11 +273,12 @@ matd_t *homography_compute(zarray_t *correspondences, int flags)
 // [  0 fy cy 0 ]
 // [  0  0  1 0 ]
 //
-// And that the homography is equal to the projection matrix times the model matrix,
-// recover the model matrix (which is returned). Note that the third column of the model
-// matrix is missing in the expresison below, reflecting the fact that the homography assumes
-// all points are at z=0 (i.e., planar) and that the element of z is thus omitted.
-// (3x1 instead of 4x1).
+// And that the homography is equal to the projection matrix times the
+// model matrix, recover the model matrix (which is returned). Note
+// that the third column of the model matrix is missing in the
+// expresison below, reflecting the fact that the homography assumes
+// all points are at z=0 (i.e., planar) and that the element of z is
+// thus omitted.  (3x1 instead of 4x1).
 //
 // [ fx 0  cx 0 ] [ R00  R01  TX ]    [ H00 H01 H02 ]
 // [  0 fy cy 0 ] [ R10  R11  TY ] =  [ H10 H11 H12 ]
@@ -300,7 +314,8 @@ matd_t *homography_to_pose(const matd_t *H, double fx, double fy, double cx, dou
     double length2 = sqrtf(R01*R01 + R11*R11 + R21*R21);
     double s = 1.0 / sqrtf(length1 * length2);
 
-    // get sign of S by requiring the tag to be behind the camera.
+    // get sign of S by requiring the tag to be in front the camera;
+    // we assume camera looks in the -Z direction.
     if (TZ > 0)
         s *= -1;
 
@@ -384,7 +399,8 @@ matd_t *homography_to_model_view(const matd_t *H, double F, double G, double A, 
     double length2 = sqrtf(R01*R01 + R11*R11 + R21*R21);
     double s = 1.0 / sqrtf(length1 * length2);
 
-    // get sign of S by requiring the tag to be behind the camera.
+    // get sign of S by requiring the tag to be in front of the camera
+    // (which is Z < 0) for our conventions.
     if (TZ > 0)
         s *= -1;
 

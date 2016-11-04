@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -96,6 +99,7 @@ int str_diff_idx(const char * a, const char * b);
  */
 zarray_t *str_split(const char *str, const char *delim);
 
+    void str_split_destroy(zarray_t *s);
 
 /*
  * Determines if str1 exactly matches str2 (more efficient than strcmp(...) == 0)
@@ -209,6 +213,10 @@ char *str_substring(const char *str, size_t startidx, long endidx);
  */
 int str_indexof(const char *haystack, const char *needle);
 
+    static inline int str_contains(const char *haystack, const char *needle) {
+        return str_indexof(haystack, needle) >= 0;
+    }
+
 // same as above, but returns last match
 int str_last_indexof(const char *haystack, const char *needle);
 
@@ -244,6 +252,7 @@ char *str_touppercase(char *s);
  */
 char *str_replace(const char *haystack, const char *needle, const char *replacement);
 
+    char *str_replace_many(const char *_haystack, ...);
 //////////////////////////////////////////////////////
 // String Buffer
 
@@ -441,6 +450,12 @@ void string_feeder_require(string_feeder_t *sf, const char *str);
     }
 #endif
 */
+
+
+// find everything that looks like an env variable and expand it
+// using getenv. Caller should free the result.
+// e.g. "$HOME/abc" ==> "/home/ebolson/abc"
+char *str_expand_envs(const char *in);
 
 #ifdef __cplusplus
 }

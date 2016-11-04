@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -41,6 +44,10 @@ either expressed or implied, of the FreeBSD Project.
 extern "C" {
 #endif
 
+typedef struct timeutil_rest timeutil_rest_t;
+timeutil_rest_t *timeutil_rest_create();
+void timeutil_rest_destroy(timeutil_rest_t * rest);
+
 int64_t utime_now(); // blacklist-ignore
 int64_t utime_get_seconds(int64_t v);
 int64_t utime_get_useconds(int64_t v);
@@ -49,6 +56,10 @@ void    utime_to_timespec(int64_t v, struct timespec *ts);
 
 int32_t  timeutil_usleep(int64_t useconds);
 uint32_t timeutil_sleep(unsigned int seconds);
+int32_t  timeutil_sleep_hz(timeutil_rest_t *rest, double hz);
+
+int64_t time_util_hhmmss_ss_to_utime(double time);
+
 
 
 #ifdef __cplusplus

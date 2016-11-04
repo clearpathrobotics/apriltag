@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -32,7 +35,7 @@ either expressed or implied, of the FreeBSD Project.
 #ifndef _G2D_H
 #define _G2D_H
 
-#include "zarray.h"
+#include "common/zarray.h"
 
 // This library tries to avoid needless proliferation of types.
 //
@@ -97,6 +100,10 @@ zarray_t *g2d_polygon_create_data(double v[][2], int sz);
 
 zarray_t *g2d_polygon_create_zeros(int sz);
 
+zarray_t *g2d_polygon_create_empty();
+
+void g2d_polygon_add(zarray_t *poly, double v[2]);
+
 // Takes a polygon in either CW or CCW and modifies it (if necessary)
 // to be CCW.
 void g2d_polygon_make_ccw(zarray_t *poly);
@@ -112,5 +119,8 @@ int g2d_polygon_contains_polygon(const zarray_t *polya, const zarray_t *polyb);
 
 // Is there some point which is in both polya and polyb?
 int g2d_polygon_overlaps_polygon(const zarray_t *polya, const zarray_t *polyb);
+
+// returns the number of points written to x. see comments.
+int g2d_polygon_rasterize(const zarray_t *poly, double y, double *x);
 
 #endif

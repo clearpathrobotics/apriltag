@@ -1,23 +1,36 @@
+PREFIX ?= /usr/local
+
 CC = gcc
 AR = ar
 
-CFLAGS = -std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -I. -Icommon -O4
-LDFLAGS = -lpthread -lm
+CFLAGS = -std=gnu99 -fPIC -Wall -Wno-unused-parameter -Wno-unused-function -I. -O4
 
-APRILTAG_OBJS = apriltag.o apriltag_quad_thresh.o tag16h5.o tag25h7.o tag25h9.o tag36h10.o tag36h11.o tag36artoolkit.o g2d.o common/zarray.o common/zhash.o common/zmaxheap.o common/unionfind.o common/matd.o common/image_u8.o common/pnm.o common/image_f32.o common/image_u32.o common/workerpool.o common/time_util.o common/svd22.o common/homography.o common/string_util.o common/getopt.o
+APRILTAG_SRCS := $(shell ls *.c common/*.c)
+APRILTAG_HEADERS := $(shell ls *.h common/*.h)
+APRILTAG_OBJS := $(APRILTAG_SRCS:%.c=%.o)
+TARGETS := libapriltag.a libapriltag.so
 
-LIBAPRILTAG := libapriltag.a
+.PHONY: all
+all: $(TARGETS)
+	@$(MAKE) -C example all
 
-all: $(LIBAPRILTAG) apriltag_demo
+.PHONY: install
+install: libapriltag.so
+	@chmod +x install.sh
+	@./install.sh $(PREFIX)/lib libapriltag.so
+	@./install.sh $(PREFIX)/include/apriltag $(APRILTAG_HEADERS)
+	@sed 's:^prefix=$$:prefix=$(PREFIX):' < apriltag.pc.in > apriltag.pc
+	@./install.sh $(PREFIX)/lib/pkgconfig apriltag.pc
+	@rm apriltag.pc
+	@ldconfig
 
-
-$(LIBAPRILTAG): $(APRILTAG_OBJS)
+libapriltag.a: $(APRILTAG_OBJS)
 	@echo "   [$@]"
 	@$(AR) -cq $@ $(APRILTAG_OBJS)
 
-apriltag_demo: apriltag_demo.o
+libapriltag.so: $(APRILTAG_OBJS)
 	@echo "   [$@]"
-	@$(CC) -o $@ apriltag_demo.o $(APRILTAG_OBJS) $(LDFLAGS)
+	@$(CC) -fPIC -shared -o $@ $^
 
 %.o: %.c
 	@echo "   $@"
@@ -25,4 +38,5 @@ apriltag_demo: apriltag_demo.o
 
 .PHONY: clean
 clean:
-	@rm -rf *.o common/*.o $(LIBAPRILTAG) apriltag_demo
+	@rm -rf *.o common/*.o $(TARGETS)
+	@$(MAKE) -C example clean

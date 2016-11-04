@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -48,8 +51,12 @@ struct image_f32
 
 image_f32_t *image_f32_create(int width, int height);
 
-image_f32_t *image_f32_create_from_u8(image_u8_t *im);
+image_f32_t *image_f32_create_from_u8(const image_u8_t *im);
 
 void image_f32_destroy(image_f32_t *im);
+
+void image_f32_normalize(image_f32_t *im);
+
+void image_f32_gaussian_blur(image_f32_t *im, double sigma, int ksz);
 
 #endif

@@ -1,10 +1,13 @@
-/* (C) 2013-2015, The Regents of The University of Michigan
+/* (C) 2013-2016, The Regents of The University of Michigan
 All rights reserved.
 
-This software may be available under alternative licensing
-terms. Contact Edwin Olson, ebolson@umich.edu, for more information.
+This software was developed in the APRIL Robotics Lab under the
+direction of Edwin Olson, ebolson@umich.edu. This software may be
+available under alternative licensing terms; contact the address
+above.
 
-   Redistribution and use in source and binary forms, with or without
+   BSD
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -143,6 +146,29 @@ image_u8_t *image_u8_create_from_pnm_alignment(const char *path, int alignment)
 
             break;
         }
+
+        case PNM_FORMAT_BINARY: {
+            im = image_u8_create_alignment(pnm->width, pnm->height, alignment);
+
+            // image is padded to be whole bytes on each row.
+
+            // how many bytes per row on the input?
+            int pbmstride = (im->width + 7) / 8;
+
+            for (int y = 0; y < im->height; y++) {
+                for (int x = 0; x < im->width; x++) {
+                    int byteidx = y * pbmstride + x / 8;
+                    int bitidx = 7 - (x & 7);
+
+                    // ack, black is one according to pbm docs!
+                    if ((pnm->buf[byteidx] >> bitidx) & 1)
+                        im->buf[y*im->stride + x] = 0;
+                    else
+                        im->buf[y*im->stride + x] = 255;
+                }
+            }
+            break;
+        }
     }
 
     pnm_destroy(pnm);
@@ -184,7 +210,7 @@ int image_u8_write_pnm(const image_u8_t *im, const char *path)
         }
     }
 
-finish:
+  finish:
     if (f != NULL)
         fclose(f);
 
@@ -281,6 +307,32 @@ static void convolve(const uint8_t *x, uint8_t *y, int sz, const uint8_t *k, int
         y[i] = x[i];
 }
 
+void image_u8_convolve_2D(image_u8_t *im, const uint8_t *k, int ksz)
+{
+    assert((ksz & 1) == 1); // ksz must be odd.
+
+    for (int y = 0; y < im->height; y++) {
+
+        uint8_t x[im->stride];
+        memcpy(x, &im->buf[y*im->stride], im->stride);
+
+        convolve(x, &im->buf[y*im->stride], im->width, k, ksz);
+    }
+
+    for (int x = 0; x < im->width; x++) {
+        uint8_t xb[im->height];
+        uint8_t yb[im->height];
+
+        for (int y = 0; y < im->height; y++)
+            xb[y] = im->buf[y*im->stride + x];
+
+        convolve(xb, yb, im->height, k, ksz);
+
+        for (int y = 0; y < im->height; y++)
+            im->buf[y*im->stride + x] = yb[y];
+    }
+}
+
 void image_u8_gaussian_blur(image_u8_t *im, double sigma, int ksz)
 {
     assert((ksz & 1) == 1); // ksz must be odd.
@@ -313,26 +365,7 @@ void image_u8_gaussian_blur(image_u8_t *im, double sigma, int ksz)
             printf("%d %15f %5d\n", i, dk[i], k[i]);
     }
 
-    for (int y = 0; y < im->height; y++) {
-
-        uint8_t x[im->stride];
-        memcpy(x, &im->buf[y*im->stride], im->stride);
-
-        convolve(x, &im->buf[y*im->stride], im->width, k, ksz);
-    }
-
-    for (int x = 0; x < im->width; x++) {
-        uint8_t xb[im->height];
-        uint8_t yb[im->height];
-
-        for (int y = 0; y < im->height; y++)
-            xb[y] = im->buf[y*im->stride + x];
-
-        convolve(xb, yb, im->height, k, ksz);
-
-        for (int y = 0; y < im->height; y++)
-            im->buf[y*im->stride + x] = yb[y];
-    }
+    image_u8_convolve_2D(im, k, ksz);
 }
 
 image_u8_t *image_u8_rotate(const image_u8_t *in, double rad, uint8_t pad)
@@ -389,7 +422,7 @@ image_u8_t *image_u8_rotate(const image_u8_t *in, double rad, uint8_t pad)
 #include <arm_neon.h>
 
 void neon_decimate2(uint8_t * __restrict dest, int destwidth, int destheight, int deststride,
-               uint8_t * __restrict src, int srcwidth, int srcheight, int srcstride)
+                    uint8_t * __restrict src, int srcwidth, int srcheight, int srcstride)
 {
     for (int y = 0; y < destheight; y++) {
         for (int x = 0; x < destwidth; x+=8) {
@@ -580,8 +613,8 @@ image_u8_t *image_u8_decimate(image_u8_t *im, float ffactor)
 
             for (int sx = 0; sx < swidth; sx++) {
                 uint32_t v = im->buf[idx] + im->buf[idx+1] + im->buf[idx+2] + im->buf[idx+3] +
-                im->buf[idx+im->stride] + im->buf[idx+im->stride + 1] + im->buf[idx+im->stride + 1] + im->buf[idx+im->stride + 2] +
-                im->buf[idx+2*im->stride] + im->buf[idx+2*im->stride + 1] + im->buf[idx+2*im->stride + 2] + im->buf[idx+2*im->stride + 3];
+                    im->buf[idx+im->stride] + im->buf[idx+im->stride + 1] + im->buf[idx+im->stride + 1] + im->buf[idx+im->stride + 2] +
+                    im->buf[idx+2*im->stride] + im->buf[idx+2*im->stride + 1] + im->buf[idx+2*im->stride + 2] + im->buf[idx+2*im->stride + 3];
 
                 decim->buf[sidx] = (v>>4);
                 idx+=4;

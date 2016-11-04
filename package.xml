@@ -2,7 +2,7 @@
 <package format="2">
   <name>apriltag</name>
   <version>0.6.4</version>
-  <description>Apriltag library (2015-03-18)</description>
+  <description>Apriltag library (2016-10-21)</description>
 
   <maintainer email="ebolson@umich.edu">Edwin Olson</maintainer>
   <maintainer email="efernandez@clearpath.ai">Enrique Fernandez</maintainer>
