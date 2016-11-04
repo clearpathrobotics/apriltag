@@ -2,6 +2,20 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Updagre to 2016-10-21 version
+  See https://april.eecs.umich.edu/media/apriltag/apriltag-2016-10-21.tgz
+  (https://april.eecs.umich.edu/software/apriltag.html)
+* Manually bump version to 0.6.4
+* Merge pull request `#2 <https://github.com/clearpathrobotics/apriltag/issues/2>`_ from clearpathrobotics/CORE-4601_fix_stride
+  Fix stride
+* Fix stride
+  fixes CORE-4601
+  See:
+  https://april.eecs.umich.edu/pipermail/apriltag-devel/2016-April/000051.html
+* Contributors: Enrique Fernandez, Enrique Fernández Perdomo
+
 0.0.4 (2016-10-14)
 ------------------
 * Merge pull request `#1 <https://github.com/clearpathrobotics/apriltag/issues/1>`_ from clearpathrobotics/fix_crash_singular_homography
