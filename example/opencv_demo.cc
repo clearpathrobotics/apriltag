@@ -47,6 +47,27 @@ either expressed or implied, of the FreeBSD Project.
 using namespace std;
 using namespace cv;
 
+#ifdef __unix__
+
+#include <signal.h>
+
+// Keep the webcam from locking up when you interrupt a frame capture:
+
+volatile int quit_signal = 0;
+
+extern "C" void quit_signal_handler(int /*signum*/)
+{
+    // Just exit already:
+    if (quit_signal != 0)
+    {
+        exit(0);
+    }
+
+    quit_signal = 1;
+
+    printf("Will quit at next camera frame (repeat to kill now)\n");
+}
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -107,8 +128,14 @@ int main(int argc, char *argv[])
     td->refine_decode = getopt_get_bool(getopt, "refine-decode");
     td->refine_pose = getopt_get_bool(getopt, "refine-pose");
 
+#ifdef __unix__
+    // Listen for Ctrl-C to avoid running into this issue
+    // https://lawlorcode.wordpress.com/2014/04/08/opencv-fix-for-v4l-vidioc_s_crop-error/
+    signal(SIGINT, quit_signal_handler);
+#endif
+
     Mat frame, gray;
-    while (true) {
+    while (!quit_signal) {
         cap >> frame;
         cvtColor(frame, gray, COLOR_BGR2GRAY);
 
