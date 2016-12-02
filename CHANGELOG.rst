@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.6 (2016-12-02)
+------------------
 * Merge pull request `#3 <https://github.com/clearpathrobotics/apriltag/issues/3>`_ from clearpathrobotics/CORE-5975_upgrade_to_2016-12-01_version
   Upgrade to 2016-12-01 version
 * Silence unused variable (used on assert)

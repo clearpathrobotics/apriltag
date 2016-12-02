@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>apriltag</name>
-  <version>0.6.5</version>
+  <version>0.6.6</version>
   <description>Apriltag library (2016-12-01)</description>
 
   <maintainer email="ebolson@umich.edu">Edwin Olson</maintainer>
