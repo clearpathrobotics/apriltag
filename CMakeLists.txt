@@ -26,7 +26,11 @@ add_library(${PROJECT_NAME}-common
   common/image_f32.c
   common/image_u8.c
   common/image_u8x3.c
+  common/image_u8x4.c
   common/matd.c
+  common/pam.c
+  common/pjpeg.c
+  common/pjpeg-idct.c
   common/pnm.c
   common/string_util.c
   common/svd22.c
@@ -37,7 +41,7 @@ add_library(${PROJECT_NAME}-common
   common/zhash.c
   common/zmaxheap.c)
 target_link_libraries(${PROJECT_NAME}-common pthread m)
-set_target_properties(${PROJECT_NAME}-common PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
+set_target_properties(${PROJECT_NAME}-common PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4 -fno-strict-overflow")
 
 add_library(${PROJECT_NAME}
   apriltag.c
@@ -50,11 +54,11 @@ add_library(${PROJECT_NAME}
   tag36h11.c)
 target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}-common ${catkin_LIBRARIES})
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4 -fno-strict-overflow")
 
 add_executable(apriltag_demo example/apriltag_demo.c)
 target_link_libraries(apriltag_demo ${PROJECT_NAME} ${catkin_LIBRARIES})
-set_target_properties(apriltag_demo PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4")
+set_target_properties(apriltag_demo PROPERTIES COMPILE_FLAGS "-std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -pthread -O4 -fno-strict-overflow")
 
 add_executable(opencv_demo example/opencv_demo.cc)
 target_link_libraries(opencv_demo ${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
