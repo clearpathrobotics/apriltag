@@ -274,7 +274,7 @@ static inline int matd_is_vector(const matd_t *a)
  * Determines whether the supplied matrix 'a' is a row or column vector
  * with a dimension of 'len' (positive return) or not (zero return).
  */
-static inline int matd_is_vector_len(const matd_t *a, int len)
+static inline int matd_is_vector_len(const matd_t *a, unsigned int len)
 {
     assert(a != NULL);
     return (a->ncols == 1 && a->nrows == len) || (a->ncols == len && a->nrows == 1);
