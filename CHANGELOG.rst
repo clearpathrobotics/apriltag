@@ -2,6 +2,17 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Merge pull request `#3 <https://github.com/clearpathrobotics/apriltag/issues/3>`_ from clearpathrobotics/CORE-5975_upgrade_to_2016-12-01_version
+  Upgrade to 2016-12-01 version
+* Silence unused variable (used on assert)
+* Use unsigned int for matd len
+* Upgrade to 2016-12-01 version
+  fixes CORE-5975
+* Keep the webcam from locking up on Ctrl+C
+* Contributors: Enrique Fernandez, Enrique Fernández Perdomo
+
 0.6.5 (2016-11-04)
 ------------------
 * Updagre to 2016-10-21 version
