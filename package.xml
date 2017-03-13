@@ -13,4 +13,6 @@
   <url type="website">https://april.eecs.umich.edu/software/apriltag.html</url>
 
   <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>opencv3</depend>
 </package>
