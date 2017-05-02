@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.7 (2017-05-02)
+------------------
 * Depend on opencv3
 * Contributors: Enrique Fernandez
 
