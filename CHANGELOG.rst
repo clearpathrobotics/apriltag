@@ -2,8 +2,8 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.8 (2020-01-31)
+------------------
 * Fix HUGE to HUGE_VALF instead, needed for Ubuntu Focal.
 * Contributors: Mike Purvis
 
