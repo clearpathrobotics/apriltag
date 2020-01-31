@@ -2,6 +2,11 @@
 Changelog for package apriltag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix HUGE to HUGE_VALF instead, needed for Ubuntu Focal.
+* Contributors: Mike Purvis
+
 0.6.7 (2017-05-02)
 ------------------
 * Depend on opencv3
