@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.27.7)
 project(apriltag VERSION 3.3.0 LANGUAGES C CXX)
 
 if(POLICY CMP0077)
@@ -6,6 +6,8 @@ if(POLICY CMP0077)
 endif()
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ASAN "Use AddressSanitizer for debug builds to detect memory issues" OFF)
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
 
 if (ASAN)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} \
