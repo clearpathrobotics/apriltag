@@ -94,7 +94,7 @@ void getopt_destroy(getopt_t *gopt)
 
     // deep free of the getopt_option structs. Also frees key/values, so
     // after this loop, hash tables will no longer work
-    zarray_vmap(gopt->options, getopt_option_destroy);
+    zarray_vmap(gopt->options, (void(*)(void *))(getopt_option_destroy));
     zarray_destroy(gopt->options);
 
     // free tables
@@ -176,7 +176,7 @@ int getopt_parse(getopt_t *gopt, int argc, char *argv[], int showErrors)
     }
 
     // now loop over the elements and evaluate the arguments
-    unsigned int i = 0;
+    int i = 0;
 
     char *tok = NULL;
 
@@ -241,7 +241,7 @@ int getopt_parse(getopt_t *gopt, int argc, char *argv[], int showErrors)
 
         if (!strncmp(tok,"-",1) && strncmp(tok,"--",2)) {
             size_t len = strlen(tok);
-            int pos;
+            size_t pos;
             for (pos = 1; pos < len; pos++) {
                 char sopt[2];
                 sopt[0] = tok[pos];
@@ -499,7 +499,7 @@ char * getopt_get_usage(getopt_t *gopt)
     int longwidth=12;
     int valuewidth=10;
 
-    for (unsigned int i = 0; i < zarray_size(gopt->options); i++) {
+    for (int i = 0; i < zarray_size(gopt->options); i++) {
         getopt_option_t *goo = NULL;
         zarray_get(gopt->options, i, &goo);
 
@@ -512,7 +512,7 @@ char * getopt_get_usage(getopt_t *gopt)
             valuewidth = max(valuewidth, (int) strlen(goo->svalue));
     }
 
-    for (unsigned int i = 0; i < zarray_size(gopt->options); i++) {
+    for (int i = 0; i < zarray_size(gopt->options); i++) {
         getopt_option_t *goo = NULL;
         zarray_get(gopt->options, i, &goo);
 

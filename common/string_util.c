@@ -38,7 +38,7 @@ either expressed or implied, of the Regents of The University of Michigan.
 struct string_buffer
 {
     char *s;
-    int alloc;
+    size_t alloc;
     size_t size; // as if strlen() was called; not counting terminating \0
 };
 
@@ -130,7 +130,7 @@ int str_diff_idx(const char * a, const char * b)
     assert(a != NULL);
     assert(b != NULL);
 
-    int i = 0;
+    size_t i = 0;
 
     size_t lena = strlen(a);
     size_t lenb = strlen(b);
@@ -141,7 +141,7 @@ int str_diff_idx(const char * a, const char * b)
         if (a[i] != b[i])
             break;
 
-    return i;
+    return (int)i;
 }
 
 
@@ -293,7 +293,7 @@ char *str_tolowercase(char *s)
 	assert(s != NULL);
 
     size_t slen = strlen(s);
-    for (int i = 0; i < slen; i++) {
+    for (size_t i = 0; i < slen; i++) {
         if (s[i] >= 'A' && s[i] <= 'Z')
             s[i] = s[i] + 'a' - 'A';
     }
@@ -306,7 +306,7 @@ char *str_touppercase(char *s)
     assert(s != NULL);
 
     size_t slen = strlen(s);
-    for (int i = 0; i < slen; i++) {
+    for (size_t i = 0; i < slen; i++) {
         if (s[i] >= 'a' && s[i] <= 'z')
             s[i] = s[i] - ('a' - 'A');
     }
@@ -499,14 +499,13 @@ char string_feeder_next(string_feeder_t *sf)
 char *string_feeder_next_length(string_feeder_t *sf, size_t length)
 {
     assert(sf != NULL);
-    assert(length >= 0);
     assert(sf->pos <= sf->len);
 
     if (sf->pos + length > sf->len)
         length = sf->len - sf->pos;
 
     char *substr = calloc(length+1, sizeof(char));
-    for (int i = 0 ; i < length ; i++)
+    for (size_t i = 0 ; i < length ; i++)
         substr[i] = string_feeder_next(sf);
     return substr;
 }
@@ -522,7 +521,6 @@ char string_feeder_peek(string_feeder_t *sf)
 char *string_feeder_peek_length(string_feeder_t *sf, size_t length)
 {
     assert(sf != NULL);
-    assert(length >= 0);
     assert(sf->pos <= sf->len);
 
     if (sf->pos + length > sf->len)
@@ -550,9 +548,10 @@ void string_feeder_require(string_feeder_t *sf, const char *str)
 
     size_t len = strlen(str);
 
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         char c = string_feeder_next(sf);
         assert(c == str[i]);
+        (void)c;
     }
 }
 
@@ -583,7 +582,7 @@ bool str_starts_with(const char *haystack, const char *needle)
     // zero, it either doesn't match needle (in which case the loop
     // terminates) or it matches needle[pos] (in which case the loop
     // terminates).
-    int pos = 0;
+    size_t pos = 0;
     while (haystack[pos] == needle[pos] && needle[pos] != 0)
         pos++;
 
@@ -647,7 +646,7 @@ char *str_replace(const char *haystack, const char *needle, const char *replacem
     size_t haystack_len = strlen(haystack);
     size_t needle_len = strlen(needle);
 
-    int pos = 0;
+    size_t pos = 0;
     while (pos < haystack_len) {
         if (needle_len > 0 && str_starts_with(&haystack[pos], needle)) {
             string_buffer_append_string(sb, replacement);

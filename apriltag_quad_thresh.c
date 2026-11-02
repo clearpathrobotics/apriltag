@@ -474,7 +474,7 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
 }
 
 // returns 0 if the cluster looks bad.
-int quad_segment_agg(apriltag_detector_t *td, zarray_t *cluster, struct line_fit_pt *lfps, int indices[4])
+int quad_segment_agg(apriltag_detector_t *, zarray_t *cluster, struct line_fit_pt *lfps, int indices[4])
 {
     int sz = zarray_size(cluster);
 
@@ -986,7 +986,7 @@ int fit_quad(
 
 #define DO_UNIONFIND2(dx, dy) if (im->buf[(y + dy)*s + x + dx] == v) unionfind_connect(uf, y*w + x, (y + dy)*w + x + dx);
 
-static void do_unionfind_first_line(unionfind_t *uf, image_u8_t *im, int h, int w, int s)
+static void do_unionfind_first_line(unionfind_t *uf, image_u8_t *im, int, int w, int s)
 {
     int y = 0;
     uint8_t v;
@@ -1001,7 +1001,7 @@ static void do_unionfind_first_line(unionfind_t *uf, image_u8_t *im, int h, int 
     }
 }
 
-static void do_unionfind_line2(unionfind_t *uf, image_u8_t *im, int h, int w, int s, int y)
+static void do_unionfind_line2(unionfind_t *uf, image_u8_t *im, int, int w, int s, int y)
 {
     assert(y > 0);
 
@@ -1804,7 +1804,8 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im)
             for (int x = 0; x < w; x++) {
                 uint32_t v = unionfind_get_representative(uf, y*w+x);
 
-                if (unionfind_get_set_size(uf, v) < td->qtp.min_cluster_pixels)
+                if (td->qtp.min_cluster_pixels > 0 &&
+                    unionfind_get_set_size(uf, v) < (uint32_t)td->qtp.min_cluster_pixels)
                     continue;
 
                 uint32_t color = colors[v];

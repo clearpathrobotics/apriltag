@@ -44,7 +44,7 @@ extern "C" {
  */
 typedef struct
 {
-    unsigned int nrows, ncols;
+    int nrows, ncols;
     double data[];
 //    double *data;
 } matd_t;
@@ -271,7 +271,7 @@ static inline int matd_is_vector(const matd_t *a)
 static inline int matd_is_vector_len(const matd_t *a, int len)
 {
     assert(a != NULL);
-    return (a->ncols == 1 && a->nrows == (unsigned int)len) || (a->ncols == (unsigned int)len && a->nrows == 1);
+    return (a->ncols == 1 && a->nrows == len) || (a->ncols == len && a->nrows == 1);
 }
 
 /**

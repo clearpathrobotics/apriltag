@@ -167,7 +167,7 @@ void zmaxheap_add(zmaxheap_t *heap, void *p, float v)
     }
 }
 
-void zmaxheap_vmap(zmaxheap_t *heap, void (*f)())
+void zmaxheap_vmap(zmaxheap_t *heap, void (*f)(void *))
 {
     assert(heap != NULL);
     assert(f != NULL);
@@ -361,7 +361,7 @@ void zmaxheap_test()
 {
     int cap = 10000;
     int sz = 0;
-    int32_t *vals = calloc(sizeof(int32_t), cap);
+    int32_t *vals = calloc(cap, sizeof(int32_t));
 
     zmaxheap_t *heap = zmaxheap_create(sizeof(int32_t));
 
@@ -397,6 +397,7 @@ void zmaxheap_test()
             int32_t outv;
             float outfv;
             int res = zmaxheap_remove_max(heap, &outv, &outfv);
+            (void)res;
             if (sz == 0) {
                 assert(res == 0);
             } else {
